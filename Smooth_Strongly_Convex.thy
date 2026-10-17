@@ -223,6 +223,79 @@ lemma stationary_is_min:
   shows "f xs + \<mu> / 2 * ((z - xs) \<bullet> (z - xs)) \<le> f z"
   using quad_lower [OF hb, of xs "z - xs"] st by simp
 
+section \<open>Existence of the minimizer\<close>
+
+text \<open>Strong convexity makes \<open>f\<close> coercive: outside the ball of radius \<open>2\<parallel>\<nabla>f 0\<parallel>/\<mu>\<close> it is
+at least \<open>f 0\<close>, so the minimum over that compact ball is the global minimum.\<close>
+
+lemma strongly_convex_outside_ball:
+  fixes f :: "real^'n::finite \<Rightarrow> real"
+  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>" and z: "2 * norm (\<nabla> f 0) / \<mu> \<le> norm z"
+  shows "f 0 \<le> f z"
+proof -
+  let ?g = "\<nabla> f 0"
+  have lower: "f 0 + z \<bullet> ?g + \<mu> / 2 * (z \<bullet> z) \<le> f z"
+    using quad_lower [OF hb, of 0 z] by simp
+  have cs: "- (norm z * norm ?g) \<le> z \<bullet> ?g"
+    using Cauchy_Schwarz_ineq2 [of z ?g] unfolding abs_le_iff by linarith
+  have zz: "z \<bullet> z = norm z * norm z"
+    by (simp add: dot_square_norm power2_eq_square)
+  have "2 * norm ?g \<le> \<mu> * norm z"
+    using z \<mu> by (simp add: pos_divide_le_eq mult.commute)
+  then have "norm ?g \<le> \<mu> / 2 * norm z" by (simp add: field_simps)
+  then have nonneg: "0 \<le> norm z * (\<mu> / 2 * norm z - norm ?g)"
+    by (intro mult_nonneg_nonneg norm_ge_zero) simp
+  have id: "norm z * (\<mu> / 2 * norm z - norm ?g) = \<mu> / 2 * (norm z * norm z) - norm z * norm ?g"
+    by algebra
+  show ?thesis using lower cs nonneg id unfolding zz by linarith
+qed
+
+theorem strongly_convex_minimizer_exists:
+  fixes f :: "real^'n::finite \<Rightarrow> real"
+  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>"
+  obtains xs where "\<And>z. f xs \<le> f z"
+proof -
+  let ?r = "2 * norm (\<nabla> f 0) / \<mu>"
+  let ?B = "cball (0::real^'n) ?r"
+  have "isCont f x" for x
+    using hess_boundsD(1) [OF hb, of x] unfolding gderiv_def by (rule has_derivative_continuous)
+  then have cont: "continuous_on ?B f"
+    by (simp add: continuous_at_imp_continuous_on)
+  have "0 \<le> ?r" using \<mu> by (simp add: divide_nonneg_pos)
+  then have zero_in: "0 \<in> ?B" by simp
+  then have "?B \<noteq> {}" by blast
+  obtain xs where xs: "xs \<in> ?B" "\<forall>y\<in>?B. f xs \<le> f y"
+    using continuous_attains_inf [OF compact_cball \<open>?B \<noteq> {}\<close> cont] by blast
+  have "f xs \<le> f z" for z
+  proof (cases "z \<in> ?B")
+    case True
+    then show ?thesis using xs by blast
+  next
+    case False
+    then have "\<not> norm z \<le> ?r" by (simp add: mem_cball dist_norm)
+    then have "?r \<le> norm z" by linarith
+    then have "f 0 \<le> f z" by (rule strongly_convex_outside_ball [OF hb \<mu>])
+    moreover have "f xs \<le> f 0" using xs zero_in by blast
+    ultimately show ?thesis by linarith
+  qed
+  then show thesis by (rule that)
+qed
+
+lemma minimizer_stationary:
+  fixes f :: "real^'n::finite \<Rightarrow> real"
+  assumes hb: "hess_bounds f \<mu> L" and min: "\<And>z. f xs \<le> f z"
+  shows "\<nabla> f xs = 0"
+proof -
+  have "(f has_derivative (\<lambda>h. h \<bullet> \<nabla> f xs)) (at xs)"
+    using hess_boundsD(1) [OF hb] unfolding gderiv_def .
+  moreover have "eventually (\<lambda>y. f xs \<le> f y) (at xs)"
+    by (simp add: min)
+  ultimately have "(\<lambda>h. h \<bullet> \<nabla> f xs) = (\<lambda>h. 0)"
+    by (rule has_derivative_local_min)
+  from fun_cong [OF this, of "\<nabla> f xs"] have "\<nabla> f xs \<bullet> \<nabla> f xs = 0" by simp
+  then show ?thesis by simp
+qed
+
 theorem gd_linear_rate:
   assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>"
     and \<alpha>: "0 < \<alpha>" "\<alpha> \<le> 1 / L" and st: "\<nabla> f xs = 0"
@@ -270,6 +343,20 @@ proof -
     by (rule gd_linear_rate [OF hb \<mu> \<alpha> st])
   finally show ?thesis
     using \<mu> by (simp add: field_simps)
+qed
+
+text \<open>The rate theorem without the stationary-point hypothesis: the minimizer exists.\<close>
+
+theorem gd_linear_rate_minimizer:
+  fixes f :: "real^'n::finite \<Rightarrow> real"
+  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>" and \<alpha>: "0 < \<alpha>" "\<alpha> \<le> 1 / L"
+  obtains xs where "\<nabla> f xs = 0" "\<And>z. f xs \<le> f z"
+    "\<And>k. f (gd_iter f \<alpha> x0 k) - f xs \<le> (1 - \<alpha> * \<mu>) ^ k * (f x0 - f xs)"
+proof -
+  obtain xs where min: "\<And>z. f xs \<le> f z"
+    by (rule strongly_convex_minimizer_exists [OF hb \<mu>]) (rule that; assumption)
+  have st: "\<nabla> f xs = 0" by (rule minimizer_stationary [OF hb min])
+  show thesis by (rule that [OF st min gd_linear_rate [OF hb \<mu> \<alpha> st]])
 qed
 
 end

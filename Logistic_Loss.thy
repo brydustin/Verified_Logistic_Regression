@@ -306,4 +306,23 @@ proof (rule gd_linear_rate)
     unfolding logistic_loss_grad by (rule st)
 qed (use lam \<alpha> in simp_all)
 
+theorem logistic_gd_rate_minimizer:
+  fixes X :: "real^'n^'m"
+  assumes R: "\<And>k. norm (X $ k) \<le> R" and lam: "0 < lam"
+    and \<alpha>: "0 < \<alpha>" "\<alpha> \<le> 1 / (R\<^sup>2 / 4 + lam)"
+  obtains ws where "logistic_grad X y lam ws = 0"
+    "\<And>w. logistic_loss X y lam ws \<le> logistic_loss X y lam w"
+    "\<And>k. logistic_loss X y lam (gd_iter (logistic_loss X y lam) \<alpha> w0 k) - logistic_loss X y lam ws
+           \<le> (1 - \<alpha> * lam) ^ k * (logistic_loss X y lam w0 - logistic_loss X y lam ws)"
+proof -
+  have hb: "hess_bounds (logistic_loss X y lam) lam (R\<^sup>2 / 4 + lam)"
+    by (rule logistic_hess_bounds [OF R]) (use lam in simp)
+  obtain ws where 1: "\<nabla> (logistic_loss X y lam) ws = 0"
+    and 2: "\<And>w. logistic_loss X y lam ws \<le> logistic_loss X y lam w"
+    and 3: "\<And>k. logistic_loss X y lam (gd_iter (logistic_loss X y lam) \<alpha> w0 k) - logistic_loss X y lam ws
+              \<le> (1 - \<alpha> * lam) ^ k * (logistic_loss X y lam w0 - logistic_loss X y lam ws)"
+    by (rule gd_linear_rate_minimizer [OF hb lam \<alpha>]) (rule that; assumption)
+  show thesis by (rule that [OF 1 [unfolded logistic_loss_grad] 2 3])
+qed
+
 end
