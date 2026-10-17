@@ -225,29 +225,62 @@ lemma stationary_is_min:
 
 section \<open>Existence of the minimizer\<close>
 
-text \<open>Strong convexity makes \<open>f\<close> coercive: outside the ball of radius \<open>2\<parallel>\<nabla>f 0\<parallel>/\<mu>\<close> it is
-at least \<open>f 0\<close>, so the minimum over that compact ball is the global minimum.\<close>
+text \<open>Strong convexity makes \<open>f\<close> coercive: outside the ball of radius \<open>2\<parallel>\<nabla>f c\<parallel>/\<mu>\<close> around any
+point \<open>c\<close> it is at least \<open>f c\<close>, so the minimum over a closed set \<open>C \<ni> c\<close> is attained on the compact
+set \<open>C \<inter> cball c r\<close> and is the minimum over all of \<open>C\<close>.\<close>
 
 lemma strongly_convex_outside_ball:
   fixes f :: "real^'n::finite \<Rightarrow> real"
-  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>" and z: "2 * norm (\<nabla> f 0) / \<mu> \<le> norm z"
-  shows "f 0 \<le> f z"
+  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>" and z: "2 * norm (\<nabla> f c) / \<mu> \<le> norm (z - c)"
+  shows "f c \<le> f z"
 proof -
-  let ?g = "\<nabla> f 0"
-  have lower: "f 0 + z \<bullet> ?g + \<mu> / 2 * (z \<bullet> z) \<le> f z"
-    using quad_lower [OF hb, of 0 z] by simp
-  have cs: "- (norm z * norm ?g) \<le> z \<bullet> ?g"
-    using Cauchy_Schwarz_ineq2 [of z ?g] unfolding abs_le_iff by linarith
-  have zz: "z \<bullet> z = norm z * norm z"
+  let ?g = "\<nabla> f c" and ?d = "z - c"
+  have lower: "f c + ?d \<bullet> ?g + \<mu> / 2 * (?d \<bullet> ?d) \<le> f z"
+    using quad_lower [OF hb, of c ?d] by simp
+  have cs: "- (norm ?d * norm ?g) \<le> ?d \<bullet> ?g"
+    using Cauchy_Schwarz_ineq2 [of ?d ?g] unfolding abs_le_iff by linarith
+  have dd: "?d \<bullet> ?d = norm ?d * norm ?d"
     by (simp add: dot_square_norm power2_eq_square)
-  have "2 * norm ?g \<le> \<mu> * norm z"
+  have "2 * norm ?g \<le> \<mu> * norm ?d"
     using z \<mu> by (simp add: pos_divide_le_eq mult.commute)
-  then have "norm ?g \<le> \<mu> / 2 * norm z" by (simp add: field_simps)
-  then have nonneg: "0 \<le> norm z * (\<mu> / 2 * norm z - norm ?g)"
+  then have "norm ?g \<le> \<mu> / 2 * norm ?d" by (simp add: field_simps)
+  then have nonneg: "0 \<le> norm ?d * (\<mu> / 2 * norm ?d - norm ?g)"
     by (intro mult_nonneg_nonneg norm_ge_zero) simp
-  have id: "norm z * (\<mu> / 2 * norm z - norm ?g) = \<mu> / 2 * (norm z * norm z) - norm z * norm ?g"
+  have id: "norm ?d * (\<mu> / 2 * norm ?d - norm ?g) = \<mu> / 2 * (norm ?d * norm ?d) - norm ?d * norm ?g"
     by algebra
-  show ?thesis using lower cs nonneg id unfolding zz by linarith
+  show ?thesis using lower cs nonneg id unfolding dd by linarith
+qed
+
+theorem strongly_convex_minimizer_exists_on:
+  fixes f :: "real^'n::finite \<Rightarrow> real"
+  assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>" and C: "closed C" "C \<noteq> {}"
+  obtains xs where "xs \<in> C" "\<And>z. z \<in> C \<Longrightarrow> f xs \<le> f z"
+proof -
+  obtain c where c: "c \<in> C" using C(2) by blast
+  let ?r = "2 * norm (\<nabla> f c) / \<mu>"
+  let ?B = "cball c ?r \<inter> C"
+  have "isCont f x" for x
+    using hess_boundsD(1) [OF hb, of x] unfolding gderiv_def by (rule has_derivative_continuous)
+  then have cont: "continuous_on ?B f"
+    by (simp add: continuous_at_imp_continuous_on)
+  have "0 \<le> ?r" using \<mu> by (simp add: divide_nonneg_pos)
+  then have cB: "c \<in> ?B" using c by simp
+  have cpt: "compact ?B" by (rule compact_Int_closed [OF compact_cball C(1)])
+  obtain xs where xs: "xs \<in> ?B" "\<forall>y\<in>?B. f xs \<le> f y"
+    using continuous_attains_inf [OF cpt _ cont] cB by blast
+  have "f xs \<le> f z" if z: "z \<in> C" for z
+  proof (cases "z \<in> cball c ?r")
+    case True
+    with z xs show ?thesis by blast
+  next
+    case False
+    then have "\<not> norm (z - c) \<le> ?r" by (simp add: mem_cball dist_norm norm_minus_commute)
+    then have "?r \<le> norm (z - c)" by linarith
+    then have "f c \<le> f z" by (rule strongly_convex_outside_ball [OF hb \<mu>])
+    moreover have "f xs \<le> f c" using xs cB by blast
+    ultimately show ?thesis by linarith
+  qed
+  with xs show thesis by (intro that [of xs]) blast+
 qed
 
 theorem strongly_convex_minimizer_exists:
@@ -255,29 +288,9 @@ theorem strongly_convex_minimizer_exists:
   assumes hb: "hess_bounds f \<mu> L" and \<mu>: "0 < \<mu>"
   obtains xs where "\<And>z. f xs \<le> f z"
 proof -
-  let ?r = "2 * norm (\<nabla> f 0) / \<mu>"
-  let ?B = "cball (0::real^'n) ?r"
-  have "isCont f x" for x
-    using hess_boundsD(1) [OF hb, of x] unfolding gderiv_def by (rule has_derivative_continuous)
-  then have cont: "continuous_on ?B f"
-    by (simp add: continuous_at_imp_continuous_on)
-  have "0 \<le> ?r" using \<mu> by (simp add: divide_nonneg_pos)
-  then have zero_in: "0 \<in> ?B" by simp
-  then have "?B \<noteq> {}" by blast
-  obtain xs where xs: "xs \<in> ?B" "\<forall>y\<in>?B. f xs \<le> f y"
-    using continuous_attains_inf [OF compact_cball \<open>?B \<noteq> {}\<close> cont] by blast
-  have "f xs \<le> f z" for z
-  proof (cases "z \<in> ?B")
-    case True
-    then show ?thesis using xs by blast
-  next
-    case False
-    then have "\<not> norm z \<le> ?r" by (simp add: mem_cball dist_norm)
-    then have "?r \<le> norm z" by linarith
-    then have "f 0 \<le> f z" by (rule strongly_convex_outside_ball [OF hb \<mu>])
-    moreover have "f xs \<le> f 0" using xs zero_in by blast
-    ultimately show ?thesis by linarith
-  qed
+  obtain xs where "xs \<in> UNIV" "\<And>z. z \<in> UNIV \<Longrightarrow> f xs \<le> f z"
+    by (rule strongly_convex_minimizer_exists_on [OF hb \<mu> closed_UNIV UNIV_not_empty]) (rule that; assumption)
+  then have "\<And>z. f xs \<le> f z" by simp
   then show thesis by (rule that)
 qed
 
