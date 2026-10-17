@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this formalization, please cite it as below."
+type: software
+title: "Verified logistic regression in Isabelle/HOL"
+authors:
+  - family-names: Bryant
+    given-names: Dustin
+version: 0.1.0
+date-released: 2026-10-17
+repository-code: "https://github.com/brydustin/Verified_Logistic_Regression"
+license: BSD-3-Clause
+keywords:
+  - Isabelle/HOL
+  - formal verification
+  - logistic regression
+  - gradient descent
+  - projected gradient descent
+  - convex optimization
+  - interactive theorem proving
+abstract: >-
+  A machine-checked formalization in Isabelle/HOL of L2-regularized logistic
+  regression: closed-form gradient and Hessian of the loss, Hessian bounds
+  giving smoothness and strong convexity, existence of the minimizer over any
+  closed set, a linear convergence rate for gradient descent, and a bridge from
+  Hessian bounds to the first-order certificates of the AFP entry
+  Projected_Gradient_Descent, yielding hypothesis-free projected gradient
+  descent rates over closed convex weight sets. Built on HOL-Higher_Diff with
+  no sorry.
+references:
+  - type: software
+    title: "Projected Gradient Descent"
+    authors:
+      - family-names: Lyu
+        given-names: Feier
+    year: 2026
+    collection-title: "Archive of Formal Proofs"
+    url: "https://isa-afp.org/entries/Projected_Gradient_Descent.html"
