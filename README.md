@@ -40,3 +40,16 @@ isabelle build -d ~/Desktop/Higher_Diff -d ~/Desktop/Isabelle/afp_extra/Projecte
 check (about 20 s) use `isabelle eval_at -l HOL-Higher_Diff -d ~/Desktop/Higher_Diff
 Logistic_Loss.thy <line>`; without `-l` the tool tries to derive the logic from `ROOT` and
 hangs on a broken session.
+
+## License and citation
+
+BSD 3-Clause, see `LICENSE`.  Citation metadata is in `CITATION.cff` (GitHub's "Cite this
+repository" button reads it); in plain text:
+
+```
+Dustin Bryant. Verified logistic regression in Isabelle/HOL. 2026.
+https://github.com/brydustin/Verified_Logistic_Regression
+```
+
+The AFP entry `Projected_Gradient_Descent` (Feier Lyu, 2026) that the bridge theory builds
+on is not included here.
