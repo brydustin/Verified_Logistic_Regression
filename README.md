@@ -1,5 +1,7 @@
 # Verified logistic regression (Isabelle/HOL)
 
+[![Build](https://github.com/brydustin/Verified_Logistic_Regression/actions/workflows/build.yml/badge.svg)](https://github.com/brydustin/Verified_Logistic_Regression/actions/workflows/build.yml)
+
 Machine-checked facts about L2-regularised logistic regression and fixed-step gradient
 descent on it, built on `HOL-Higher_Diff` (gradients `∇`, Hessians `∇²`) over HOL-Analysis
 vectors `real^'n`, bridged to the AFP's first-order-methods library.  No locales, no `sorry`.
@@ -40,6 +42,10 @@ isabelle build -d ~/Desktop/Higher_Diff -d ~/Desktop/Isabelle/afp_extra/Projecte
 check (about 20 s) use `isabelle eval_at -l HOL-Higher_Diff -d ~/Desktop/Higher_Diff
 Logistic_Loss.thy <line>`; without `-l` the tool tries to derive the logic from `ROOT` and
 hangs on a broken session.
+
+`.github/workflows/build.yml` runs the same build on GitHub Actions: it downloads
+Isabelle2025-2, the AFP entry's release tarball and the `HOL-Higher_Diff` sources, and caches
+the session heaps so that only a cold run pays for HOL-Analysis.
 
 ## License and citation
 

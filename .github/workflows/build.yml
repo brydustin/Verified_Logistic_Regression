@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  ISABELLE: Isabelle2025-2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out HOL-Higher_Diff
+        uses: actions/checkout@v4
+        with:
+          repository: brydustin/Higher_Diff
+          path: deps/Higher_Diff
+
+      - name: Fetch AFP entry Projected_Gradient_Descent
+        run: |
+          mkdir -p deps/afp
+          curl -fsSL -o deps/afp/pgd.tar.gz \
+            https://www.isa-afp.org/release/afp-Projected_Gradient_Descent-current.tar.gz
+          tar xzf deps/afp/pgd.tar.gz -C deps/afp
+
+      - name: Install Isabelle
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/isabelle.tar.gz" \
+            "https://isabelle.in.tum.de/website-$ISABELLE/dist/${ISABELLE}_linux.tar.gz"
+          tar xzf "$RUNNER_TEMP/isabelle.tar.gz" -C "$HOME"
+          echo "$HOME/$ISABELLE/bin" >> "$GITHUB_PATH"
+
+      # HOL-Analysis alone takes about half an hour on a runner; the heaps are cached
+      # and Isabelle rebuilds only the sessions whose sources changed.
+      - name: Cache session heaps
+        uses: actions/cache@v4
+        with:
+          path: ~/.isabelle/${{ env.ISABELLE }}/heaps
+          key: heaps-${{ env.ISABELLE }}-${{ hashFiles('deps/Higher_Diff/ROOT', 'deps/Higher_Diff/*.thy', 'deps/afp/**/*.thy', 'deps/afp/**/ROOT') }}
+          restore-keys: heaps-${{ env.ISABELLE }}-
+
+      - name: Build Logistic_Regression
+        run: |
+          isabelle build -v -d deps/Higher_Diff -d deps/afp/Projected_Gradient_Descent -d . \
+            Logistic_Regression
